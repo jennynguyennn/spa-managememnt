@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from '../../lib/supabaseClient';
-// ...existing code...
+
 export default function MemberForm({ onSaved, editing, setEditing }: any) {
   const [form, setForm] = useState({ id_number: "", full_name: "", mobile: "" });
   const [loading, setLoading] = useState(false);
@@ -56,7 +56,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             value={form.id_number}
             onChange={(e) => setForm({ ...form, id_number: e.target.value })}
             placeholder="e.g. 12345"
-            className="mt-1 block w-full border-gray-200 rounded px-3 py-2 shadow-sm focus:ring-2 focus:ring-blue-200"
+            className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
           />
         </div>
 
@@ -66,7 +66,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             value={form.full_name}
             onChange={(e) => setForm({ ...form, full_name: e.target.value })}
             placeholder="Full name"
-            className="mt-1 block w-full border-gray-200 rounded px-3 py-2 shadow-sm focus:ring-2 focus:ring-blue-200"
+            className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
           />
         </div>
 
@@ -76,7 +76,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             value={form.mobile}
             onChange={(e) => setForm({ ...form, mobile: e.target.value })}
             placeholder="+6012..."
-            className="mt-1 block w-full border-gray-200 rounded px-3 py-2 shadow-sm focus:ring-2 focus:ring-blue-200"
+            className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
           />
         </div>
       </div>
@@ -103,4 +103,3 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
     </form>
   );
 }
-// ...existing code...

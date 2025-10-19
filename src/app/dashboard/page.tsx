@@ -334,7 +334,7 @@ export default function Dashboard() {
                   <div className="flex-1">
                     <div className="mb-2">
                       <div className="text-sm text-gray-600">Tên Khách Hàng</div>
-                      <div className="text-lg font-medium">{modalMember?.full_name}</div>
+                      <div className="text-lg font-medium text-gray-600">{modalMember?.full_name}</div>
                     </div>
 
                     <div className="mb-2">
