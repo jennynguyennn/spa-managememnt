@@ -261,54 +261,59 @@ export default function Dashboard() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
+      {/* Header: stacks on small screens */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h1 className="text-2xl font-semibold">Thẻ Thành Viên</h1>
 
-        <div className="flex items-center gap-3">
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') findMembers(); }}
-            placeholder="Tìm theo ID / CCCD / Số điện thoại"
-            className="px-3 py-1 rounded border text-sm"
-            aria-label="Find member"
-          />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') findMembers(); }}
+              placeholder="Tìm theo ID / CCCD / Số điện thoại"
+              className="px-3 py-1 rounded text-sm w-full sm:w-72"
+              aria-label="Find member"
+            />
 
-          <button
-            onClick={() => (searching ? null : findMembers())}
-            className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-            aria-label="Tìm"
-            disabled={searching}
-          >
-            {searching ? 'Đang tìm…' : 'Tìm'}
-          </button>
+            <button
+              onClick={() => (searching ? null : findMembers())}
+              className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              aria-label="Tìm"
+              disabled={searching}
+            >
+              {searching ? 'Đang tìm…' : 'Tìm'}
+            </button>
+          </div>
 
-          <button
-            onClick={() => { setSearchTerm(''); load(); }}
-            className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-black"
-            aria-label="Xóa tìm kiếm"
-          >
-            Xóa
-          </button>
+          <div className="flex flex-wrap items-center gap-2 justify-end ml-auto">
+            <button
+              onClick={() => { setSearchTerm(''); load(); }}
+              className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-black"
+              aria-label="Xóa tìm kiếm"
+            >
+              Xóa
+            </button>
 
-          <div className="text-sm text-gray-600">Tổng: {members.length}</div>
+            <div className="text-sm text-gray-600 hidden sm:block">Tổng: {members.length}</div>
 
-          <button
-            onClick={() => (scanning ? stopScanner() : startScanner())}
-            className={`text-sm px-3 py-1 rounded ${scanning ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}
-            aria-label="Quét QR"
-          >
-            {scanning ? 'Dừng quét' : 'Quét QR'}
-          </button>
+            <button
+              onClick={() => (scanning ? stopScanner() : startScanner())}
+              className={`text-sm px-3 py-1 rounded ${scanning ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}
+              aria-label="Quét QR"
+            >
+              {scanning ? 'Dừng quét' : 'Quét QR'}
+            </button>
 
-          <button
-            onClick={load}
-            className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-black"
-            aria-label="Làm mới"
-          >
-            Làm mới
-          </button>
+            <button
+              onClick={load}
+              className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-black"
+              aria-label="Làm mới"
+            >
+              Làm mới
+            </button>
+          </div>
         </div>
       </div>
 
@@ -359,15 +364,15 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* larger QR area and ensure long text wraps/breaks */}
+            {/* modal content: stacks on mobile */}
             <div className="p-5 flex flex-col sm:flex-row gap-4">
               {modalMember?.error ? (
                 <div className="text-sm text-red-600">{modalMember.error}</div>
               ) : (
                 <>
                   <div className="flex-shrink-0">
-                    {/* make QR bigger */}
-                    <div className="w-56 h-56 bg-gray-50 rounded flex items-center justify-center border">
+                    {/* responsive QR size */}
+                    <div className="w-44 h-44 sm:w-56 sm:h-56 bg-gray-50 rounded flex items-center justify-center border">
                       <QRComponent member={modalMember} />
                     </div>
                   </div>
@@ -390,7 +395,6 @@ export default function Dashboard() {
                     </div>
 
                     <div className="mt-4 flex gap-2">
-
                       <button
                         onClick={closeModal}
                         className="px-3 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 text-sm"
@@ -406,7 +410,47 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="mt-6 bg-white shadow rounded">
+      {/* Mobile card list (visible on small screens) */}
+      <div className="sm:hidden mt-4">
+        <div className="space-y-3">
+          {!loading && members.length === 0 ? (
+            <div className="bg-white p-4 rounded text-center text-sm text-gray-500">Chưa có khách hàng.</div>
+          ) : (
+            members.map((m) => (
+              <div key={m.id} className="bg-white shadow rounded p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">{m.full_name}</div>
+                    <div className="text-xs text-gray-500 break-all">{m.id_number}</div>
+                    <div className="text-sm text-gray-700">{m.mobile}</div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2">
+                    <button
+                      onClick={() => {
+                        setModalMember(m);
+                        setModalOpen(true);
+                      }}
+                      className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-800 text-sm rounded hover:bg-blue-100"
+                    >
+                      Hiển thị QR
+                    </button>
+                  </div>
+                </div>
+
+                {showQrFor === m.id && (
+                  <div className="mt-3 flex justify-center">
+                    <QRComponent member={m} />
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Desktop table (hidden on small screens) */}
+      <div className="hidden sm:block mt-6 bg-white shadow rounded">
         <div className="px-4 py-3 sm:px-6 border-b border-gray-100 flex items-center justify-between">
           <span className="text-sm text-gray-600">Danh sách Khách Hàng</span>
           {loading && <span className="text-sm text-gray-500">Đang tải…</span>}
@@ -436,20 +480,6 @@ export default function Dashboard() {
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{m.mobile}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setEditing(m)}
-                          className="inline-flex items-center px-3 py-1.5 bg-yellow-100 text-yellow-800 text-sm rounded hover:bg-yellow-200"
-                        >
-                          Sửa
-                        </button>
-
-                        <button
-                          onClick={() => deleteMember(m.id)}
-                          className="inline-flex items-center px-3 py-1.5 bg-red-600 text-black text-sm rounded hover:bg-red-700"
-                        >
-                          Xóa
-                        </button>
-
                         <button
                           onClick={() => {
                             // open modal for this member
