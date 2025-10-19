@@ -21,6 +21,10 @@ export default function Dashboard() {
   const scannerId = "dashboard-reader";
   // ref to measure scanner container for responsive sizing
   const scannerContainerRef = useRef<HTMLDivElement | null>(null);
+  // observer + guards for responsive qrbox resizing/restart
+  const qrResizeObserverRef = useRef<ResizeObserver | null>(null);
+  const restartingRef = useRef(false);
+  const currentQrBoxRef = useRef<number | null>(null);
 
   // modal state for showing member info (after scan or when user clicks Show QR)
   const [modalOpen, setModalOpen] = useState(false);
@@ -119,110 +123,202 @@ export default function Dashboard() {
     }
   }
 
-  // Start scanner (dynamic import to avoid SSR issues)
   async function startScanner() {
     setModalMember(null);
     setModalOpen(false);
     setScanning(true);
+
     try {
       const module = await import('html5-qrcode');
       const { Html5Qrcode } = module;
+
       // stop existing instance if any
       if (html5QrCodeRef.current) {
-        await html5QrCodeRef.current.stop().catch(()=>{});
-        html5QrCodeRef.current.clear().catch(()=>{});
+        try {
+          await html5QrCodeRef.current.stop();
+        } catch (e) {}
+        try {
+          await html5QrCodeRef.current.clear();
+        } catch (e) {}
         html5QrCodeRef.current = null;
       }
 
+      // create new instance
       html5QrCodeRef.current = new Html5Qrcode(scannerId);
 
-      // compute a responsive qrbox based on container size / viewport (better on iPhone)
-      let qrbox = 250;
-      try {
-        const container = scannerContainerRef.current ?? document.getElementById(scannerId);
-        const rect = container?.getBoundingClientRect();
-        if (rect) {
-          const size = Math.min(rect.width, rect.height);
-          // use 60% of the smaller dimension, clamp between 120..360
-          qrbox = Math.max(120, Math.min(360, Math.floor(size * 0.6)));
-        } else {
-          const vw = Math.min(window.innerWidth, 640);
-          qrbox = vw < 420 ? Math.floor(vw * 0.6) : 250;
-        }
-      } catch (e) {
-        qrbox = 250;
-      }
+      // helper to compute a good qrbox size based on rendered video/container size
+      const computeQrBox = (containerEl: HTMLElement | null) => {
+        try {
+          if (!containerEl) return 250;
+          // Prefer the actual video size if html5-qrcode already inserted a video
+          const videoEl = containerEl.querySelector('video');
+          if (videoEl && (videoEl as HTMLVideoElement).clientWidth > 0 && (videoEl as HTMLVideoElement).clientHeight > 0) {
+            const vw = (videoEl as HTMLVideoElement).clientWidth;
+            const vh = (videoEl as HTMLVideoElement).clientHeight;
+            const side = Math.min(vw, vh);
+            // use 60% of smaller side, clamp to reasonable values
+            return Math.max(120, Math.min(360, Math.floor(side * 0.6)));
+          }
 
-      // videoConstraints help on mobile (iPhone) to prefer back camera and reasonable resolution
-      const startConfig = {
-        fps: 10,
-        qrbox,
-        // prefer environment camera and give ideal resolution; html5-qrcode will fall back if needed
-        videoConstraints: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          // fall back to container bounding rect
+          const rect = containerEl.getBoundingClientRect();
+          const size = Math.min(rect.width, rect.height || window.innerHeight * 0.5);
+          // use 60% of smaller dimension, clamp
+          return Math.max(120, Math.min(360, Math.floor(size * 0.6)));
+        } catch (e) {
+          return 250;
         }
       };
 
-      await html5QrCodeRef.current.start(
-        { facingMode: "environment" },
-        startConfig,
-        async (decodedText: string) => {
-          try {
-            // Try to decrypt scanned payload first (if passphrase set), otherwise fall back
-            let payloadText = decodedText;
-            const passphrase = process.env.NEXT_PUBLIC_QR_PASSPHRASE ?? "";
-            if (passphrase) {
-              try {
-                payloadText = await decryptString(decodedText, passphrase);
-              } catch (e) {
-                // decryption failed — payload remains as decodedText
-              }
-            }
-
-            // payloadText may be JSON payload or plain id_number
-            let payload: any;
+      // callbacks (kept same logic as original code; uses outer-scope helpers like supabase & decryptString)
+      const scanSuccess = async (decodedText: string) => {
+        try {
+          let payloadText = decodedText;
+          const passphrase = process.env.NEXT_PUBLIC_QR_PASSPHRASE ?? '';
+          if (passphrase) {
             try {
-              payload = JSON.parse(payloadText);
-            } catch {
-              payload = { id_number: payloadText };
+              payloadText = await decryptString(decodedText, passphrase);
+            } catch (e) {
+              // leave as decodedText
             }
-
-            const idNumber = payload?.id_number;
-            if (!idNumber) {
-              console.warn('No id_number found in QR payload', payload);
-              return;
-            }
-
-            const { data, error } = await supabase
-              .from('members')
-              .select('*')
-              .eq('id_number', idNumber)
-              .single();
-
-            if (error) {
-              console.error('Supabase lookup error:', error);
-              // show modal with error message
-              setModalMember({ error: error.message });
-            } else if (!data) {
-              setModalMember({ error: 'Không tìm thấy khách hàng' });
-            } else {
-              // show member info in modal
-              setModalMember(data);
-            }
-
-            // open modal and stop scanner after any result
-            setModalOpen(true);
-            await stopScanner();
-          } catch (err) {
-            console.error('scan callback error', err);
           }
-        },
-        (errorMessage: any) => {
-          // scan failure callback (ignore or log)
+
+          let payload: any;
+          try {
+            payload = JSON.parse(payloadText);
+          } catch {
+            payload = { id_number: payloadText };
+          }
+
+          const idNumber = payload?.id_number;
+          if (!idNumber) {
+            console.warn('No id_number found in QR payload', payload);
+            return;
+          }
+
+          const { data, error } = await supabase
+            .from('members')
+            .select('*')
+            .eq('id_number', idNumber)
+            .single();
+
+          if (error) {
+            console.error('Supabase lookup error:', error);
+            setModalMember({ error: error.message });
+          } else if (!data) {
+            setModalMember({ error: 'Không tìm thấy khách hàng' });
+          } else {
+            setModalMember(data);
+          }
+
+          setModalOpen(true);
+          await stopScanner();
+        } catch (err) {
+          console.error('scan callback error', err);
         }
+      };
+
+      const scanFailure = (errorMessage: any) => {
+        // ignore frequent scan failures or show debug log
+        // console.warn('scan failure', errorMessage);
+      };
+
+      // initial qrbox calculation (attempt to use container if present)
+      const containerEl = scannerContainerRef.current ?? document.getElementById(scannerId);
+      const initialQrBox = computeQrBox(containerEl as HTMLElement);
+      currentQrBoxRef.current = initialQrBox;
+
+      const startConfig = {
+        fps: 10,
+        qrbox: initialQrBox,
+        videoConstraints: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
+
+      // start scanning
+      await html5QrCodeRef.current.start(
+        { facingMode: 'environment' },
+        startConfig,
+        scanSuccess,
+        scanFailure
       );
+
+      // After starting, observe size changes and restart scanner with a better qrbox if needed.
+      // We debounce rapid changes and avoid overlapping restarts.
+      if (containerEl) {
+        // disconnect previous observer if any
+        if (qrResizeObserverRef.current) {
+          try {
+            qrResizeObserverRef.current.disconnect();
+          } catch (e) {}
+          qrResizeObserverRef.current = null;
+        }
+
+        let debounceTimer: any = null;
+        const onResize = () => {
+          if (restartingRef.current) return;
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(async () => {
+            try {
+              const newBox = computeQrBox(containerEl as HTMLElement);
+              const prevBox = currentQrBoxRef.current ?? 0;
+              // only restart when the size change is meaningful (avoid tiny jitter)
+              if (Math.abs(newBox - prevBox) > 20) {
+                restartingRef.current = true;
+                // gracefully stop and restart with new qrbox
+                try {
+                  if (html5QrCodeRef.current) {
+                    await html5QrCodeRef.current.stop().catch(() => {});
+                    await html5QrCodeRef.current.clear().catch(() => {});
+                  }
+                } catch (e) {
+                  // ignore stop errors
+                }
+
+                // create a fresh instance to ensure internal UI recreates
+                html5QrCodeRef.current = new Html5Qrcode(scannerId);
+
+                const restartConfig = {
+                  ...startConfig,
+                  qrbox: newBox,
+                };
+                currentQrBoxRef.current = newBox;
+
+                try {
+                  await html5QrCodeRef.current.start(
+                    { facingMode: 'environment' },
+                    restartConfig,
+                    scanSuccess,
+                    scanFailure
+                  );
+                } catch (e) {
+                  console.error('Failed to restart html5-qrcode with new qrbox', e);
+                }
+                // small delay before allowing another restart
+                setTimeout(() => {
+                  restartingRef.current = false;
+                }, 500);
+              }
+            } catch (e) {
+              console.error('qrbox resize handler error', e);
+              restartingRef.current = false;
+            }
+          }, 250);
+        };
+
+        const ro = new ResizeObserver(onResize);
+        ro.observe(containerEl);
+        // also watch the window in case orientation change affects layout but ResizeObserver misses it
+        window.addEventListener('orientationchange', onResize);
+        // store observer and cleanup info
+        qrResizeObserverRef.current = ro;
+
+        // run one immediate check after a short delay so we can pick up the actual video size once inserted
+        setTimeout(onResize, 250);
+      }
     } catch (err) {
       console.error('startScanner error', err);
       setScanning(false);
@@ -231,14 +327,27 @@ export default function Dashboard() {
 
   async function stopScanner() {
     try {
+      // disconnect resize observer if present
+      if (qrResizeObserverRef.current) {
+        try {
+          qrResizeObserverRef.current.disconnect();
+        } catch (e) {}
+        qrResizeObserverRef.current = null;
+      }
+      try {
+        window.removeEventListener('orientationchange', () => {});
+      } catch (e) {}
+
       if (html5QrCodeRef.current) {
-        await html5QrCodeRef.current.stop();
-        await html5QrCodeRef.current.clear();
+        await html5QrCodeRef.current.stop().catch(() => {});
+        await html5QrCodeRef.current.clear().catch(() => {});
         html5QrCodeRef.current = null;
       }
     } catch (e) {
       // ignore stop errors
     } finally {
+      currentQrBoxRef.current = null;
+      restartingRef.current = false;
       setScanning(false);
     }
   }
