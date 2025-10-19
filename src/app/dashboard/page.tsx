@@ -141,7 +141,9 @@ export default function Dashboard() {
         { facingMode: "environment" },
         // smaller qrbox -> scanner will attempt to match a smaller overlay while the video feed
         // shows more area around it (wider view). Keep fps as before.
-        { fps: 10, qrbox: 200 },
+        { fps: 10, 
+          qrbox: { width: 300, height: 300 }, 
+        },
         async (decodedText: string) => {
           try {
             // Try to decrypt scanned payload first (if passphrase set), otherwise fall back
@@ -295,12 +297,21 @@ export default function Dashboard() {
 
       {/* Scanner area */}
       {scanning && (
-        <div className="mt-4 p-4 bg-white rounded shadow">
-          {/* increased container size and smaller qrbox so camera shows a wider field around the QR */}
-          <div id={scannerId} style={{ width: 480, height: 320 }} />
-          <div className="mt-2 text-sm text-gray-600">Hướng camera vào mã QR của khách hàng.</div>
-        </div>
-      )}
+  <div className="mt-4 p-4 bg-white rounded shadow">
+    {/* Responsive scanner container */}
+    <div
+      id={scannerId}
+      className="relative w-full max-w-md aspect-square mx-auto overflow-hidden rounded-lg"
+      style={{
+        backgroundColor: '#000',
+      }}
+    />
+    <div className="mt-2 text-sm text-gray-600 text-center">
+      Hướng camera vào mã QR của khách hàng.
+    </div>
+  </div>
+)}
+
 
       {/* Modal popup for scanned or selected member */}
       {modalOpen && (
