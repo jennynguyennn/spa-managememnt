@@ -16,13 +16,42 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <form onSubmit={handleSignIn} className="p-6 rounded shadow bg-white">
-        <h2 className="text-xl mb-4">Staff sign in</h2>
-        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="email" />
-        <input value={password} onChange={e=>setPassword(e.target.value)} placeholder="password" type="password" />
-        <button type="submit">Sign in</button>
-      </form>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-4">
+          <h1 className="text-2xl font-semibold text-gray-800">Quản Lý Thẻ Thành Viên</h1>
+        </div>
+
+        <form
+          onSubmit={handleSignIn}
+          className="p-6 rounded shadow bg-white w-full space-y-4"
+          aria-label="Staff sign in form"
+        >
+          <h2 className="text-xl mb-0 font-medium text-gray-800">Đăng Nhập</h2>
+
+          <input
+            value={email}
+            onChange={e=>setEmail(e.target.value)}
+            placeholder="email"
+            className="w-full px-3 py-2 rounded border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+
+          <input
+            value={password}
+            onChange={e=>setPassword(e.target.value)}
+            placeholder="password"
+            type="password"
+            className="w-full px-3 py-2 rounded border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+
+          <button
+            type="submit"
+            className="w-full px-3 py-2 rounded bg-gray-100 text-gray-900 border border-gray-300 hover:bg-gray-200"
+          >
+            Đăng Nhập
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

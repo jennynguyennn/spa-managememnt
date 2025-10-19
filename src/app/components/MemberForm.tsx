@@ -51,7 +51,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
     <form onSubmit={handleSubmit} className="mt-4 bg-white shadow-sm border rounded p-4">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
         <div>
-          <label className="block text-sm font-medium text-gray-700">ID number</label>
+          <label className="block text-sm font-medium text-gray-700">CCCD</label>
           <input
             value={form.id_number}
             onChange={(e) => setForm({ ...form, id_number: e.target.value })}
@@ -61,7 +61,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
         </div>
 
         <div className="sm:col-span-2">
-          <label className="block text-sm font-medium text-gray-700">Name</label>
+          <label className="block text-sm font-medium text-gray-700">Tên Khách Hàng</label>
           <input
             value={form.full_name}
             onChange={(e) => setForm({ ...form, full_name: e.target.value })}
@@ -71,7 +71,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Mobile</label>
+          <label className="block text-sm font-medium text-gray-700">Số Điện Thoại</label>
           <input
             value={form.mobile}
             onChange={(e) => setForm({ ...form, mobile: e.target.value })}
@@ -87,7 +87,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
           disabled={loading}
           className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60"
         >
-          {editing ? "Update" : loading ? "Saving..." : "Add member"}
+          {editing ? "Cập nhật" : loading ? "Lưu..." : "Thêm Thành Viên"}
         </button>
 
         {editing && (

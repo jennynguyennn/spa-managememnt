@@ -3,14 +3,17 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import QRComponent from '../components/QRComponent';
 import MemberForm from '../components/MemberForm';
-
-// ...existing code...
+import { decryptString } from '../../lib/crypto';
 
 export default function Dashboard() {
   const [members, setMembers] = useState<any[]>([]);
   const [editing, setEditing] = useState<any | null>(null);
   const [showQrFor, setShowQrFor] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // searching
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searching, setSearching] = useState<boolean>(false);
 
   // scanning related
   const [scanning, setScanning] = useState(false);
@@ -48,7 +51,7 @@ export default function Dashboard() {
   }, []);
 
   async function deleteMember(id: number) {
-    if (!confirm('Delete member?')) return;
+    if (!confirm('Xóa khách hàng?')) return;
     const { error } = await supabase.from('members').delete().eq('id', id);
     if (error) return alert(error.message);
     setMembers((s) => s.filter((m) => m.id !== id));
@@ -70,6 +73,48 @@ export default function Dashboard() {
 
     // hide other QR previews
     setShowQrFor(null);
+  }
+
+  // Find members by id / id_number / mobile
+  async function findMembers() {
+    const term = searchTerm.trim();
+    if (!term) {
+      await load();
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const expressions: string[] = [];
+      // if term is an integer, include id equality
+      if (/^\d+$/.test(term)) {
+        expressions.push(`id.eq.${term}`);
+      }
+      // use ilike for partial matches on id_number and mobile
+      const escaped = term.replace(/%/g, '\\%').replace(/_/g, '\\_');
+      expressions.push(`id_number.ilike.%${escaped}%`);
+      expressions.push(`mobile.ilike.%${escaped}%`);
+      const orQuery = expressions.join(',');
+
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .or(orQuery)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('findMembers error', error);
+        alert(error.message);
+        setMembers([]);
+      } else {
+        setMembers(data || []);
+      }
+    } catch (err) {
+      console.error('findMembers unexpected error', err);
+      alert('Tìm thất bại');
+    } finally {
+      setSearching(false);
+    }
   }
 
   // Start scanner (dynamic import to avoid SSR issues)
@@ -94,12 +139,23 @@ export default function Dashboard() {
         { fps: 10, qrbox: 250 },
         async (decodedText: string) => {
           try {
-            // decodedText may be JSON payload or plain id_number
+            // Try to decrypt scanned payload first (if passphrase set), otherwise fall back
+            let payloadText = decodedText;
+            const passphrase = process.env.NEXT_PUBLIC_QR_PASSPHRASE ?? "";
+            if (passphrase) {
+              try {
+                payloadText = await decryptString(decodedText, passphrase);
+              } catch (e) {
+                // decryption failed — payload remains as decodedText
+              }
+            }
+
+            // payloadText may be JSON payload or plain id_number
             let payload: any;
             try {
-              payload = JSON.parse(decodedText);
+              payload = JSON.parse(payloadText);
             } catch {
-              payload = { id_number: decodedText };
+              payload = { id_number: payloadText };
             }
 
             const idNumber = payload?.id_number;
@@ -119,7 +175,7 @@ export default function Dashboard() {
               // show modal with error message
               setModalMember({ error: error.message });
             } else if (!data) {
-              setModalMember({ error: 'Member not found' });
+              setModalMember({ error: 'Không tìm thấy khách hàng' });
             } else {
               // show member info in modal
               setModalMember(data);
@@ -175,25 +231,52 @@ export default function Dashboard() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Members</h1>
+        <h1 className="text-2xl font-semibold">Thẻ Thành Viên</h1>
 
         <div className="flex items-center gap-3">
-          <div className="text-sm text-gray-600">{members.length} total</div>
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') findMembers(); }}
+            placeholder="Tìm theo ID / CCCD / Số điện thoại"
+            className="px-3 py-1 rounded border text-sm"
+            aria-label="Find member"
+          />
+
+          <button
+            onClick={() => (searching ? null : findMembers())}
+            className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            aria-label="Tìm"
+            disabled={searching}
+          >
+            {searching ? 'Đang tìm…' : 'Tìm'}
+          </button>
+
+          <button
+            onClick={() => { setSearchTerm(''); load(); }}
+            className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-black"
+            aria-label="Xóa tìm kiếm"
+          >
+            Xóa
+          </button>
+
+          <div className="text-sm text-gray-600">Tổng: {members.length}</div>
 
           <button
             onClick={() => (scanning ? stopScanner() : startScanner())}
             className={`text-sm px-3 py-1 rounded ${scanning ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}
-            aria-label="Scan QR"
+            aria-label="Quét QR"
           >
-            {scanning ? 'Stop Scan' : 'Scan QR'}
+            {scanning ? 'Dừng quét' : 'Quét QR'}
           </button>
 
           <button
             onClick={load}
-            className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
-            aria-label="Refresh members"
+            className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-black"
+            aria-label="Làm mới"
           >
-            Refresh
+            Làm mới
           </button>
         </div>
       </div>
@@ -204,7 +287,7 @@ export default function Dashboard() {
       {scanning && (
         <div className="mt-4 p-4 bg-white rounded shadow">
           <div id={scannerId} style={{ width: 340, height: 340 }} />
-          <div className="mt-2 text-sm text-gray-600">Point your camera at a member QR code.</div>
+          <div className="mt-2 text-sm text-gray-600">Hướng camera vào mã QR của khách hàng.</div>
         </div>
       )}
 
@@ -215,49 +298,53 @@ export default function Dashboard() {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={closeModal}
           />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+          {/* increased modal max width so QR can be larger */}
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
             <div className="flex items-center justify-between px-5 py-3 border-b">
               <div>
-                <h3 className="text-lg font-semibold">
-                  {modalMember?.full_name ?? 'Scan result'}
-                </h3>
-                {modalMember?.id_number && (
-                  <div className="text-xs text-gray-500">ID: {modalMember.id_number}</div>
-                )}
-              </div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                   {modalMember?.full_name ?? 'Kết quả quét'}
+                 </h3>
+                 {modalMember?.id_number && (
+                   <div className="text-xs text-gray-500">CCCD: {modalMember.id_number}</div>
+                 )}
+               </div>
               <button
                 onClick={closeModal}
                 className="text-gray-500 hover:text-gray-700 p-2 rounded"
-                aria-label="Close"
+                aria-label="Đóng"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-5 flex gap-4">
+            {/* larger QR area and ensure long text wraps/breaks */}
+            <div className="p-5 flex flex-col sm:flex-row gap-4">
               {modalMember?.error ? (
                 <div className="text-sm text-red-600">{modalMember.error}</div>
               ) : (
                 <>
                   <div className="flex-shrink-0">
-                    <div className="w-36 h-36 bg-gray-50 rounded flex items-center justify-center border">
+                    {/* make QR bigger */}
+                    <div className="w-56 h-56 bg-gray-50 rounded flex items-center justify-center border">
                       <QRComponent member={modalMember} />
                     </div>
                   </div>
 
                   <div className="flex-1">
                     <div className="mb-2">
-                      <div className="text-sm text-gray-600">Full name</div>
+                      <div className="text-sm text-gray-600">Tên Khách Hàng</div>
                       <div className="text-lg font-medium">{modalMember?.full_name}</div>
                     </div>
 
                     <div className="mb-2">
-                      <div className="text-sm text-gray-600">ID number</div>
-                      <div className="text-sm text-gray-800">{modalMember?.id_number}</div>
+                      <div className="text-sm text-gray-600">CCCD</div>
+                      {/* allow long id to wrap / break so it doesn't overflow */}
+                      <div className="text-sm text-gray-800 break-all">{modalMember?.id_number}</div>
                     </div>
 
                     <div className="mb-2">
-                      <div className="text-sm text-gray-600">Mobile</div>
+                      <div className="text-sm text-gray-600">Số Điện Thoại</div>
                       <div className="text-sm text-gray-800">{modalMember?.mobile ?? '-'}</div>
                     </div>
 
@@ -267,7 +354,7 @@ export default function Dashboard() {
                         onClick={closeModal}
                         className="px-3 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 text-sm"
                       >
-                        Close
+                        Đóng
                       </button>
                     </div>
                   </div>
@@ -280,25 +367,25 @@ export default function Dashboard() {
 
       <div className="mt-6 bg-white shadow rounded">
         <div className="px-4 py-3 sm:px-6 border-b border-gray-100 flex items-center justify-between">
-          <span className="text-sm text-gray-600">Members list</span>
-          {loading && <span className="text-sm text-gray-500">Loading…</span>}
+          <span className="text-sm text-gray-600">Danh sách Khách Hàng</span>
+          {loading && <span className="text-sm text-gray-500">Đang tải…</span>}
         </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID number</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CCCD</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên Khách Hàng</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số Điện Thoại</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
               </tr>
             </thead>
 
             <tbody className="bg-white divide-y divide-gray-200">
               {!loading && members.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">No members yet.</td>
+                  <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">Chưa có khách hàng.</td>
                 </tr>
               ) : (
                 members.map((m) => (
@@ -312,14 +399,14 @@ export default function Dashboard() {
                           onClick={() => setEditing(m)}
                           className="inline-flex items-center px-3 py-1.5 bg-yellow-100 text-yellow-800 text-sm rounded hover:bg-yellow-200"
                         >
-                          Edit
+                          Sửa
                         </button>
 
                         <button
                           onClick={() => deleteMember(m.id)}
-                          className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                          className="inline-flex items-center px-3 py-1.5 bg-red-600 text-black text-sm rounded hover:bg-red-700"
                         >
-                          Delete
+                          Xóa
                         </button>
 
                         <button
@@ -330,7 +417,7 @@ export default function Dashboard() {
                           }}
                           className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-800 text-sm rounded hover:bg-blue-100"
                         >
-                          Show QR
+                          Hiển thị QR
                         </button>
                       </div>
 
@@ -350,5 +437,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-// ...existing code...
