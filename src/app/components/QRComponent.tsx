@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { encryptString } from "../../lib/crypto";
 
 type Member = { id?: number; id_number?: string; full_name?: string; mobile?: string };
 
@@ -7,33 +8,36 @@ export default function QRComponent({ member }: { member?: Member }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const passphrase = process.env.NEXT_PUBLIC_QR_PASSPHRASE ?? "";
+
   useEffect(() => {
     if (!member) {
       setDataUrl(null);
       return;
     }
 
-    const payload = JSON.stringify({ id_number: member.id_number, full_name: member.full_name });
+    const plain = JSON.stringify({ id_number: member.id_number, full_name: member.full_name });
     let mounted = true;
     setLoading(true);
 
-    import("qrcode")
-      .then((qrcode) => qrcode.toDataURL(payload, { margin: 2, scale: 6 }))
-      .then((url) => {
+    (async () => {
+      try {
+        const encrypted = passphrase ? await encryptString(plain, passphrase) : plain;
+        const qrcode = await import("qrcode");
+        const url = await qrcode.toDataURL(encrypted, { margin: 2, scale: 6 });
         if (mounted) setDataUrl(url);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("QR generation error:", err);
         if (mounted) setDataUrl(null);
-      })
-      .finally(() => {
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       mounted = false;
     };
-  }, [member]);
+  }, [member, passphrase]);
 
   function downloadPNG() {
     if (!dataUrl) return;
