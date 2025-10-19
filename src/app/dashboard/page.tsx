@@ -139,7 +139,9 @@ export default function Dashboard() {
 
       await html5QrCodeRef.current.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
+        // smaller qrbox -> scanner will attempt to match a smaller overlay while the video feed
+        // shows more area around it (wider view). Keep fps as before.
+        { fps: 10, qrbox: 200 },
         async (decodedText: string) => {
           try {
             // Try to decrypt scanned payload first (if passphrase set), otherwise fall back
@@ -294,17 +296,8 @@ export default function Dashboard() {
       {/* Scanner area */}
       {scanning && (
         <div className="mt-4 p-4 bg-white rounded shadow">
-          {/* responsive container: full width up to max, height based on viewport for mobile */}
-          <div
-            id={scannerId}
-            ref={scannerContainerRef}
-            style={{
-              width: '100%',
-              maxWidth: 640,
-              height: 'min(60vw, 420px)',
-              margin: '0 auto'
-            }}
-          />
+          {/* increased container size and smaller qrbox so camera shows a wider field around the QR */}
+          <div id={scannerId} style={{ width: 480, height: 320 }} />
           <div className="mt-2 text-sm text-gray-600">Hướng camera vào mã QR của khách hàng.</div>
         </div>
       )}
