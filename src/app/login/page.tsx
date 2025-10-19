@@ -19,7 +19,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm">
         <div className="text-center mb-4">
-          <h1 className="text-2xl font-semibold text-gray-800">Thẻ Thành Viên</h1>
+          <h1 className="text-2xl font-semibold text-gray-800">Quản Lý Thẻ Thành Viên</h1>
         </div>
 
         <form
