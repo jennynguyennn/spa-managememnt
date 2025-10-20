@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Spa Member Management",
+  title: "Quản Lý QR Code",
   description: "Quản lý thông tin thành viên spa đơn giản",
 };
 
