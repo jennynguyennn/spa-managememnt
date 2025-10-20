@@ -406,8 +406,14 @@ export default function Dashboard() {
 
                     <div className="mb-2">
                       <div className="text-sm text-gray-600">CCCD</div>
-                      {/* allow long id to wrap / break so it doesn't overflow */}
                       <div className="text-sm text-gray-800 break-all">{modalMember?.id_number}</div>
+                    </div>
+
+                    <div className="mb-2">
+                      <div className="text-sm text-gray-600">Ngày cấp CCCD</div>
+                      <div className="text-sm text-gray-800">
+                        {modalMember?.id_card_created_date ? new Date(modalMember.id_card_created_date).toLocaleDateString() : '-'}
+                      </div>
                     </div>
 
                     <div className="mb-2">
@@ -444,6 +450,9 @@ export default function Dashboard() {
                     <div className="text-sm font-medium text-gray-900 truncate">{m.full_name}</div>
                     <div className="text-xs text-gray-500 break-all">{m.id_number}</div>
                     <div className="text-sm text-gray-700">{m.mobile}</div>
+                    <div className="text-sm text-gray-500">
+                      Ngày cấp: {m.id_card_created_date ? new Date(m.id_card_created_date).toLocaleDateString() : '-'}
+                    </div>
                   </div>
 
                   <div className="flex flex-col items-end gap-2">
@@ -500,6 +509,7 @@ export default function Dashboard() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CCCD</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày cấp</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên Khách Hàng</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số Điện Thoại</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
@@ -509,12 +519,15 @@ export default function Dashboard() {
             <tbody className="bg-white divide-y divide-gray-200">
               {!loading && members.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">Chưa có khách hàng.</td>
+                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">Chưa có khách hàng.</td>
                 </tr>
               ) : (
                 members.map((m) => (
                   <tr key={m.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{m.id_number}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                      {m.id_card_created_date ? new Date(m.id_card_created_date).toLocaleDateString() : '-'}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{m.full_name}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{m.mobile}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">

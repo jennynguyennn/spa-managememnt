@@ -3,11 +3,19 @@ import { useState, useEffect } from "react";
 import { supabase } from '../../lib/supabaseClient';
 
 export default function MemberForm({ onSaved, editing, setEditing }: any) {
-  const [form, setForm] = useState({ id_number: "", full_name: "", mobile: "" });
+  const [form, setForm] = useState({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (editing) setForm(editing);
+    if (editing) {
+      // ensure form fields exist even if editing object doesn't include them
+      setForm({
+        id_number: editing.id_number ?? "",
+        full_name: editing.full_name ?? "",
+        mobile: editing.mobile ?? "",
+        id_card_created_date: editing.id_card_created_date ? String(editing.id_card_created_date).slice(0,10) : "",
+      });
+    }
   }, [editing]);
 
   async function handleSubmit(e: any) {
@@ -22,6 +30,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             id_number: form.id_number,
             full_name: form.full_name,
             mobile: form.mobile,
+            id_card_created_date: form.id_card_created_date || null,
           })
           .eq("id", editing.id);
 
@@ -33,12 +42,13 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             id_number: form.id_number,
             full_name: form.full_name,
             mobile: form.mobile,
+            id_card_created_date: form.id_card_created_date || null,
           },
         ]);
         if (error) throw error;
       }
 
-      setForm({ id_number: "", full_name: "", mobile: "" });
+      setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" });
       onSaved?.(); // reload members in dashboard
     } catch (err: any) {
       alert("Error: " + (err?.message ?? String(err)));
@@ -79,6 +89,17 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
           />
         </div>
+
+        {/* New date field - will flow to 2nd row on small screens due to grid */}
+        <div className="sm:col-span-1">
+          <label className="block text-sm font-medium text-gray-700">Ngày cấp CCCD</label>
+          <input
+            type="date"
+            value={form.id_card_created_date}
+            onChange={(e) => setForm({ ...form, id_card_created_date: e.target.value })}
+            className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+          />
+        </div>
       </div>
 
       <div className="flex gap-2 mt-4">
@@ -93,7 +114,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
         {editing && (
           <button
             type="button"
-            onClick={() => { setEditing(null); setForm({ id_number: "", full_name: "", mobile: "" }); }}
+            onClick={() => { setEditing(null); setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" }); }}
             className="inline-flex items-center gap-2 bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
           >
             Cancel
