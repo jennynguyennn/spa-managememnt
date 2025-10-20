@@ -51,6 +51,9 @@ export default function Dashboard() {
 
   useEffect(() => {
    let mounted = true;
+   // load members immediately and fetch role in parallel
+   load(); // fire-and-forget
+
    (async () => {
      try {
        const { data: authData, error: authErr } = await supabase.auth.getUser();
