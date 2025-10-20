@@ -1,20 +1,28 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from '../../lib/supabaseClient';
 
 export default function MemberForm({ onSaved, editing, setEditing }: any) {
-  const [form, setForm] = useState({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" });
+  const [form, setForm] = useState({
+    id_number: "",
+    full_name: "",
+    mobile: "",
+    id_card_created_date: "",
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (editing) {
-      // ensure form fields exist even if editing object doesn't include them
       setForm({
         id_number: editing.id_number ?? "",
         full_name: editing.full_name ?? "",
         mobile: editing.mobile ?? "",
-        id_card_created_date: editing.id_card_created_date ? String(editing.id_card_created_date).slice(0,10) : "",
+        id_card_created_date: editing.id_card_created_date
+          ? String(editing.id_card_created_date).slice(0, 10)
+          : "",
       });
+    } else {
+      setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" });
     }
   }, [editing]);
 
@@ -22,35 +30,51 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
     e.preventDefault();
     setLoading(true);
 
+    // required validation
+    if (!form.id_number.trim() || !form.full_name.trim()) {
+      alert("Vui lòng nhập CCCD và Tên khách hàng (ID number and Name are required).");
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (editing) {
-        const { error } = await supabase
+      if (editing && editing.id) {
+        const { data, error } = await supabase
           .from("members")
           .update({
-            id_number: form.id_number,
-            full_name: form.full_name,
-            mobile: form.mobile,
+            id_number: form.id_number.trim(),
+            full_name: form.full_name.trim(),
+            mobile: form.mobile.trim() || null,
             id_card_created_date: form.id_card_created_date || null,
           })
-          .eq("id", editing.id);
+          .eq("id", editing.id)
+          .select()
+          .single();
 
         if (error) throw error;
         setEditing(null);
+        await onSaved?.(data);
       } else {
-        const { error } = await supabase.from("members").insert([
-          {
-            id_number: form.id_number,
-            full_name: form.full_name,
-            mobile: form.mobile,
-            id_card_created_date: form.id_card_created_date || null,
-          },
-        ]);
+        const { data, error } = await supabase
+          .from("members")
+          .insert([
+            {
+              id_number: form.id_number.trim(),
+              full_name: form.full_name.trim(),
+              mobile: form.mobile.trim() || null,
+              id_card_created_date: form.id_card_created_date || null,
+            },
+          ])
+          .select()
+          .single();
+
         if (error) throw error;
+        await onSaved?.(data);
       }
 
       setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" });
-      onSaved?.(); // reload members in dashboard
     } catch (err: any) {
+      console.error("member submit error:", err);
       alert("Error: " + (err?.message ?? String(err)));
     } finally {
       setLoading(false);
@@ -67,6 +91,8 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             onChange={(e) => setForm({ ...form, id_number: e.target.value })}
             placeholder="e.g. 12345"
             className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+            required
+            aria-required
           />
         </div>
 
@@ -77,6 +103,8 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             onChange={(e) => setForm({ ...form, full_name: e.target.value })}
             placeholder="Fullname"
             className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+            required
+            aria-required
           />
         </div>
 
@@ -90,7 +118,6 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
           />
         </div>
 
-        {/* New date field - will flow to 2nd row on small screens due to grid */}
         <div className="sm:col-span-1">
           <label className="block text-sm font-medium text-gray-700">Ngày cấp CCCD</label>
           <input
@@ -108,16 +135,19 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
           disabled={loading}
           className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60"
         >
-          {editing ? "Cập nhật" : loading ? "Lưu..." : "Thêm Thành Viên"}
+          {editing ? (loading ? "Đang cập nhật..." : "Cập nhật") : loading ? "Đang lưu..." : "Thêm Thành Viên"}
         </button>
 
         {editing && (
           <button
             type="button"
-            onClick={() => { setEditing(null); setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" }); }}
+            onClick={() => {
+              setEditing(null);
+              setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" });
+            }}
             className="inline-flex items-center gap-2 bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
           >
-            Cancel
+            Hủy
           </button>
         )}
       </div>
