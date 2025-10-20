@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient';
 import QRComponent from '../components/QRComponent';
 import MemberForm from '../components/MemberForm';
 import { decryptString } from '../../lib/crypto';
+import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
   const [members, setMembers] = useState<any[]>([]);
@@ -26,6 +27,10 @@ export default function Dashboard() {
   // modal state for showing member info (after scan or when user clicks Show QR)
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMember, setModalMember] = useState<any | null>(null);
+  // role state (admin/staff) — fetched on mount
+  const [role, setRole] = useState<'admin' | 'staff' | null>(null);
+  const router = useRouter();
+
 
   async function load() {
     setLoading(true);
@@ -45,15 +50,34 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    load();
+   let mounted = true;
+   (async () => {
+     try {
+       const { data: authData, error: authErr } = await supabase.auth.getUser();
+       if (authErr) return console.error('auth.getUser', authErr);
+       const user = (authData as any)?.user;
+       if (!user) return;
 
-    // cleanup scanner on unmount
-    return () => {
-      stopScanner().catch(()=>{});
-    };
+       const { data: profile, error } = await supabase
+         .from('profiles')
+         .select('role')
+         .eq('id', user.id)
+         .single();
+
+       if (!error && profile?.role && mounted) setRole(profile.role);
+     } catch (e) {
+       console.error('fetch profile role', e);
+     }
+   })();
+   return () => { mounted = false; };
   }, []);
 
   async function deleteMember(id: number) {
+    // client-side guard: only admin can delete
+    if (role !== 'admin') {
+      alert('Chỉ admin mới có quyền xóa.');
+      return;
+    }
     if (!confirm('Xóa khách hàng?')) return;
     const { error } = await supabase.from('members').delete().eq('id', id);
     if (error) return alert(error.message);
@@ -235,6 +259,17 @@ export default function Dashboard() {
     return () => window.removeEventListener('keydown', onKey);
   }, [modalOpen]);
 
+  async function handleLogout() {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      router.push('/login');
+    } catch (err: any) {
+      console.error('Logout error', err);
+      alert('Logout failed: ' + (err?.message ?? String(err)));
+    }
+  }
+
   return (
     <div className="p-6">
       {/* Header: stacks on small screens */}
@@ -284,11 +319,21 @@ export default function Dashboard() {
 
             <button
               onClick={load}
-              className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-black"
-              aria-label="Làm mới"
+              className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+              aria-label="Refresh members"
             >
-              Làm mới
+              Làm Mới
             </button>
+            
+            <button
+              onClick={handleLogout}
+              className="text-sm px-3 py-1 bg-gray-100 rounded hover:bg-gray-200"
+              aria-label="Log out"
+            >
+              Đăng xuất
+            </button>
+
+            
           </div>
         </div>
       </div>
@@ -402,16 +447,34 @@ export default function Dashboard() {
                   </div>
 
                   <div className="flex flex-col items-end gap-2">
-                    <button
-                      onClick={() => {
-                        setModalMember(m);
-                        setModalOpen(true);
-                      }}
-                      className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-800 text-sm rounded hover:bg-blue-100"
-                    >
-                      Hiển thị QR
-                    </button>
-                  </div>
+                    {role === 'admin' && (
+                      <button
+                        onClick={() => setEditing(m)}
+                        className="inline-flex items-center px-3 py-1.5 bg-yellow-100 text-yellow-800 text-sm rounded hover:bg-yellow-200"
+                      >
+                        Chỉnh sửa
+                      </button>
+                    )}
+                     <button
+                       onClick={() => {
+                         setModalMember(m);
+                         setModalOpen(true);
+                       }}
+                       className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-800 text-sm rounded hover:bg-blue-100"
+                     >
+                       Hiển thị QR
+                     </button>
+ 
+                     {/* show delete only to admin */}
+                     {role === 'admin' && (
+                       <button
+                         onClick={() => deleteMember(m.id)}
+                         className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                       >
+                         Xóa
+                       </button>
+                     )}
+                   </div>
                 </div>
 
                 {showQrFor === m.id && (
@@ -456,6 +519,14 @@ export default function Dashboard() {
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{m.mobile}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <div className="flex items-center justify-end gap-2">
+                        {role === 'admin' && (
+                          <button
+                            onClick={() => setEditing(m)}
+                            className="inline-flex items-center px-3 py-1.5 bg-yellow-100 text-yellow-800 text-sm rounded hover:bg-yellow-200"
+                          >
+                            Chỉnh sửa
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             // open modal for this member
@@ -466,6 +537,16 @@ export default function Dashboard() {
                         >
                           Hiển thị QR
                         </button>
+ 
+                        {/* show delete only to admin */}
+                        {role === 'admin' && (
+                          <button
+                             onClick={() => deleteMember(m.id)}
+                             className="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                        >
+                            Xóa
+                          </button>
+                        )}
                       </div>
 
                       {showQrFor === m.id && (
