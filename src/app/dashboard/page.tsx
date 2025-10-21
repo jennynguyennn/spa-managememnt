@@ -202,7 +202,7 @@ export default function Dashboard() {
               .from('members')
               .select('*')
               .eq('id_number', idNumber)
-              .single();
+              .maybeSingle();
 
             if (error) {
               console.error('Supabase lookup error:', error);

@@ -49,7 +49,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
           })
           .eq("id", editing.id)
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         setEditing(null);
@@ -66,7 +66,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             },
           ])
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         await onSaved?.(data);
