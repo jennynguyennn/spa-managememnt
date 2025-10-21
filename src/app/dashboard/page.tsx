@@ -203,7 +203,10 @@ export default function Dashboard() {
 
             const idNumber = payload?.id_number;
             if (!idNumber) {
-              console.warn('No id_number found in QR payload', payload);
+              // invalid QR payload — show user-friendly Vietnamese message
+              setModalMember({ error: 'QR này không có trong hệ thống.' });
+              setModalOpen(true);
+              await stopScanner();
               return;
             }
 
@@ -215,9 +218,10 @@ export default function Dashboard() {
 
             if (error) {
               console.error('Supabase lookup error:', error);
-              setModalMember({ error: error.message });
+              setModalMember({ error: 'Không tìm thấy khách hàng.' });
             } else if (!data) {
-              setModalMember({ error: 'Member not found' });
+              // QR decoded but not found in DB — inform user in Vietnamese
+              setModalMember({ error: 'Khách hàng không tồn tại hoặc QR này không có trong hệ thống.' });
             } else {
               setModalMember(data);
             }
