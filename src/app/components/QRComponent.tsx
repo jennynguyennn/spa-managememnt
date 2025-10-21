@@ -8,7 +8,7 @@ export default function QRComponent({ member }: { member?: Member }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const passphrase = process.env.NEXT_PUBLIC_QR_PASSPHRASE ?? "";
+  const passphrase = (process.env.NEXT_PUBLIC_QR_PASSPHRASE ?? "").trim();
 
   useEffect(() => {
     if (!member) {
@@ -16,27 +16,32 @@ export default function QRComponent({ member }: { member?: Member }) {
       return;
     }
 
-    const plain = JSON.stringify({ id_number: member.id_number, full_name: member.full_name });
-    let mounted = true;
-    setLoading(true);
-
     (async () => {
+      setLoading(true);
       try {
-        const encrypted = passphrase ? await encryptString(plain, passphrase) : plain;
+        const payload = JSON.stringify({ id_number: member.id_number });
+        let content = payload;
+
+        // only encrypt if passphrase present (and not empty)
+        if (passphrase) {
+          try {
+            content = await encryptString(payload, passphrase);
+          } catch (e) {
+            console.warn("QR encrypt failed, falling back to plaintext", e);
+            content = payload;
+          }
+        }
+
         const qrcode = await import("qrcode");
-        const url = await qrcode.toDataURL(encrypted, { margin: 2, scale: 6 });
-        if (mounted) setDataUrl(url);
+        const url = await qrcode.toDataURL(content, { margin: 2, scale: 6 });
+        setDataUrl(url);
       } catch (err) {
         console.error("QR generation error:", err);
-        if (mounted) setDataUrl(null);
+        setDataUrl(null);
       } finally {
-        if (mounted) setLoading(false);
+        setLoading(false);
       }
     })();
-
-    return () => {
-      mounted = false;
-    };
   }, [member, passphrase]);
 
   function downloadPNG() {

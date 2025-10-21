@@ -173,23 +173,32 @@ export default function Dashboard() {
         },
         async (decodedText: string) => {
           try {
-            // Try to decrypt scanned payload first (if passphrase set), otherwise fall back
-            let payloadText = decodedText;
-            const passphrase = process.env.NEXT_PUBLIC_QR_PASSPHRASE ?? "";
+            const passphrase = (process.env.NEXT_PUBLIC_QR_PASSPHRASE ?? "").trim();
+            let raw = decodedText;
+
+            // try decrypt if passphrase configured
             if (passphrase) {
               try {
-                payloadText = await decryptString(decodedText, passphrase);
+                // decryptString should throw on bad input / wrong passphrase
+                raw = await decryptString(decodedText, passphrase);
               } catch (e) {
-                // decryption failed — payload remains as decodedText
+                // decryption failed — fall back to raw decoded text
+                console.warn('QR decrypt failed, using raw decoded text', e);
+                raw = decodedText;
               }
             }
 
-            // payloadText may be JSON payload or plain id_number
+            // try parse JSON
             let payload: any;
             try {
-              payload = JSON.parse(payloadText);
+              payload = JSON.parse(raw);
             } catch {
-              payload = { id_number: payloadText };
+              // if not JSON, maybe it's urlencoded JSON or plain id_number
+              try {
+                payload = JSON.parse(decodeURIComponent(raw));
+              } catch {
+                payload = { id_number: raw };
+              }
             }
 
             const idNumber = payload?.id_number;
@@ -206,16 +215,13 @@ export default function Dashboard() {
 
             if (error) {
               console.error('Supabase lookup error:', error);
-              // show modal with error message
               setModalMember({ error: error.message });
             } else if (!data) {
-              setModalMember({ error: 'Không tìm thấy khách hàng' });
+              setModalMember({ error: 'Member not found' });
             } else {
-              // show member info in modal
               setModalMember(data);
             }
 
-            // open modal and stop scanner after any result
             setModalOpen(true);
             await stopScanner();
           } catch (err) {
