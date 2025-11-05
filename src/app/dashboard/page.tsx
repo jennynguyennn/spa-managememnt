@@ -434,6 +434,11 @@ export default function Dashboard() {
                       <div className="text-sm text-gray-800">{modalMember?.mobile ?? '-'}</div>
                     </div>
 
+                    <div className="mb-2">
+                      <div className="text-sm text-gray-600">Ghi Chú</div>
+                      <div className="text-sm text-gray-800">{modalMember?.note ?? '-'}</div>
+                    </div>
+
                     <div className="mt-4 flex gap-2">
                       <button
                         onClick={closeModal}

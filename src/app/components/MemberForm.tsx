@@ -8,6 +8,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
     full_name: "",
     mobile: "",
     id_card_created_date: "",
+    note: "", // new field
   });
   const [loading, setLoading] = useState(false);
 
@@ -20,9 +21,10 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
         id_card_created_date: editing.id_card_created_date
           ? String(editing.id_card_created_date).slice(0, 10)
           : "",
+        note: editing.note ?? "", // initialize when editing
       });
     } else {
-      setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" });
+      setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "", note: "" });
     }
   }, [editing]);
 
@@ -46,6 +48,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             full_name: form.full_name.trim(),
             mobile: form.mobile.trim() || null,
             id_card_created_date: form.id_card_created_date || null,
+            note: form.note?.trim() || null, // include note
           })
           .eq("id", editing.id)
           .select()
@@ -63,6 +66,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
               full_name: form.full_name.trim(),
               mobile: form.mobile.trim() || null,
               id_card_created_date: form.id_card_created_date || null,
+              note: form.note?.trim() || null, // include note
             },
           ])
           .select()
@@ -72,7 +76,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
         await onSaved?.(data);
       }
 
-      setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" });
+      setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "", note: "" });
     } catch (err: any) {
       console.error("member submit error:", err);
       alert("Error: " + (err?.message ?? String(err)));
@@ -129,6 +133,18 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
         </div>
       </div>
 
+      {/* Note field - free text, not used in QR */}
+      <div className="mt-3">
+        <label className="block text-sm font-medium text-gray-700">Ghi Chú</label>
+        <textarea
+          value={form.note}
+          onChange={(e) => setForm({ ...form, note: e.target.value })}
+          placeholder="Ghi chú thêm về khách hàng..."
+          className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+          rows={3}
+        />
+      </div>
+
       <div className="flex gap-2 mt-4">
         <button
           type="submit"
@@ -143,7 +159,7 @@ export default function MemberForm({ onSaved, editing, setEditing }: any) {
             type="button"
             onClick={() => {
               setEditing(null);
-              setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "" });
+              setForm({ id_number: "", full_name: "", mobile: "", id_card_created_date: "", note: "" });
             }}
             className="inline-flex items-center gap-2 bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
           >
